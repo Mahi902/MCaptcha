@@ -365,8 +365,8 @@
         // 2. Show the verified message (MCaptcha logo pops up)
         verifiedMsg.style.display = "block";
         
-        // 3. Set cookie for 3 seconds
-        document.cookie = "mverified=true; max-age=3; path=/";
+        // 3. Set cookie for 20 seconds
+        document.cookie = "mverified=true; max-age=20; path=/";
         
         await sleep(500); 
 
