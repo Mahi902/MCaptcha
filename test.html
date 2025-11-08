@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Test | Protected by MCaptcha</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f7f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .login-container {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 30px;
+      width: 350px;
+      text-align: center;
+    }
+    h2 {
+      color: #1a73e8;
+      font-weight: 600;
+      margin-bottom: 25px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background-color 0.3s;
+    }
+    button:hover:enabled {
+      background-color: #1669c7;
+    }
+    button:disabled {
+      background-color: #a0c3f0;
+      cursor: not-allowed;
+    }
+
+    /* CAPTCHA specific styles */
+    .captcha-container {
+      margin-top: 20px;
+      border: 1px solid #d4d4d4;
+      border-radius: 6px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s;
+    }
+    .captcha-container:hover {
+      background-color: #f7f7f7;
+    }
+    .captcha-checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #555;
+      border-radius: 4px;
+      margin-right: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .captcha-checkbox.verified {
+      border-color: #0f9d58;
+      background-color: #0f9d58;
+    }
+    .captcha-checkbox.verified .material-icons {
+      color: white;
+      font-size: 16px;
+    }
+    .captcha-text {
+      font-size: 1rem;
+      color: #333;
+    }
+
+    /* IFRAME Container and Animation */
+    #iframe-wrapper {
+      margin-top: 15px;
+      height: 0; /* Starts hidden */
+      overflow: hidden;
+      transition: height 0.3s ease-in-out;
+    }
+    #captcha-iframe {
+      width: 100%;
+      height: 480px; /* Approximate height of the MCaptcha */
+      border: none;
+      display: block;
+      visibility: hidden; /* Hide initially to avoid flash */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <form id="loginForm">
+      <h2>Account Login</h2>
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+
+      <div id="captchaTrigger" class="captcha-container">
+        <div id="captchaCheck" class="captcha-checkbox">
+          <span class="material-icons" style="display:none;">check</span>
+        </div>
+        <div class="captcha-text">I'm not a human</div>
+      </div>
+      
+      <div id="iframe-wrapper">
+        <iframe id="captcha-iframe" src="about:blank" title="MCaptcha Verification"></iframe>
+      </div>
+
+      <button type="submit" id="loginButton" disabled>Log In</button>
+    </form>
+    
+    <p id="statusMessage" style="color:red; margin-top: 15px;"></p>
+  </div>
+
+  <script>
+    const CAPTCHA_URL = 'https://mahi902.github.io/MCaptcha/mc1.html';
+    const loginForm = document.getElementById('loginForm');
+    const loginButton = document.getElementById('loginButton');
+    const captchaTrigger = document.getElementById('captchaTrigger');
+    const captchaCheck = document.getElementById('captchaCheck');
+    const iframeWrapper = document.getElementById('iframe-wrapper');
+    const captchaIframe = document.getElementById('captcha-iframe');
+    const statusMessage = document.getElementById('statusMessage');
+
+    let isVerified = false;
+    let isIframeLoaded = false;
+    let checkInterval;
+
+    // --- Cookie Check Functions ---
+
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    }
+
+    function checkVerificationStatus() {
+      const verified = getCookie('mverified');
+      const previouslyVerified = isVerified;
+
+      if (verified) {
+        if (!previouslyVerified) {
+          // Verification successful
+          isVerified = true;
+          captchaCheck.classList.add('verified');
+          captchaCheck.querySelector('.material-icons').style.display = 'block';
+          loginButton.disabled = false;
+          statusMessage.textContent = 'Verification successful! You can now log in.';
+          
+          // Collapse the iframe
+          iframeWrapper.style.height = '0';
+          setTimeout(() => {
+              captchaIframe.style.visibility = 'hidden';
+              captchaIframe.src = 'about:blank'; // Reset iframe source
+          }, 300);
+        }
+      } else {
+        if (previouslyVerified) {
+          // Verification cookie expired or removed
+          isVerified = false;
+          captchaCheck.classList.remove('verified');
+          captchaCheck.querySelector('.material-icons').style.display = 'none';
+          loginButton.disabled = true;
+          statusMessage.textContent = 'Verification expired. Please verify again.';
+        }
+      }
+    }
+
+    // --- Event Handlers ---
+
+    captchaTrigger.addEventListener('click', () => {
+      // Toggle visibility of the CAPTCHA iframe
+      if (iframeWrapper.style.height === '0px' || iframeWrapper.style.height === '') {
+        // Expand the iframe
+        if (!isIframeLoaded) {
+          // Only load the source once to save resources
+          captchaIframe.src = CAPTCHA_URL;
+          isIframeLoaded = true;
+        }
+        captchaIframe.style.visibility = 'visible';
+        iframeWrapper.style.height = '480px'; 
+      } else {
+        // Collapse the iframe
+        iframeWrapper.style.height = '0';
+        setTimeout(() => {
+            captchaIframe.style.visibility = 'hidden';
+        }, 300);
+      }
+    });
+
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (isVerified) {
+        statusMessage.style.color = 'green';
+        statusMessage.textContent = 'Login successful! Submitting credentials... (This is a test page)';
+        // In a real application, you would submit the form data here.
+      } else {
+        statusMessage.style.color = 'red';
+        statusMessage.textContent = 'Please complete the MCaptcha verification first.';
+      }
+    });
+    
+    // --- Initialization ---
+
+    function startCheck() {
+        // Continuous check for the cookie (every second)
+        checkInterval = setInterval(checkVerificationStatus, 1000);
+        checkVerificationStatus(); // Initial check on load
+    }
+    
+    // Start continuous cookie checking
+    startCheck();
+
+  </script>
+</body>
+</html>
